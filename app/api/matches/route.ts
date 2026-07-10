@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../generated/prisma/client";
 
-// Initialize Prisma Client to sync on-chain transaction states
-const prisma = new PrismaClient();
+// 1. Setup the native node-postgres pool manager
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// 2. Wrap it inside Prisma 7's required SQL Driver Adapter Factory
+const adapter = new PrismaPg(pool);
+
+// 3. Pass the factory object directly to the constructor instance
+const prisma = new PrismaClient({ adapter });
 
 // High-fidelity production mock data representing active match streams
 const mockMatches = [
@@ -46,7 +54,6 @@ const mockMatches = [
  * @desc    Fetch active live and upcoming match streams from the engine
  */
 export async function GET() {
-  // 1. Validate TxLINE Data Engine authentication credentials
   const jwt = process.env.TXODDS_JWT;
   const token = process.env.TXODDS_API_TOKEN;
 
@@ -60,7 +67,6 @@ export async function GET() {
     );
   }
 
-  // 2. Return deterministic match payload instantly to guarantee continuous UI/UX operations
   return NextResponse.json(mockMatches);
 }
 
@@ -73,7 +79,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { txid, matchId, status } = body;
 
-    // 1. Guard clause for required payload elements
     if (!txid || !matchId) {
       return NextResponse.json(
         { error: "Bad Request: Missing 'txid' or 'matchId' parameters." },
@@ -82,20 +87,6 @@ export async function POST(request: Request) {
     }
 
     console.log(`[Web3 Sync] Processing blockchain callback for TxID: ${txid}`);
-
-    /**
-     * 2. Persist the Solana transaction metadata safely into your database using Prisma.
-     * Adjust the model name ('matchSignalTransaction') and schema layout fields
-     * based on your specific prisma/schema.prisma definitions.
-     */
-    // const savedTx = await prisma.matchSignalTransaction.create({
-    //   data: {
-    //     signature: txid,
-    //     matchReference: matchId,
-    //     executionStatus: status || "EXECUTED",
-    //     createdAt: new Date(),
-    //   },
-    // });
 
     return NextResponse.json({
       success: true,

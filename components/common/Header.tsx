@@ -1,8 +1,14 @@
 "use client";
 
 import { FC } from "react";
-// Remove the curly braces if WalletButton is a default export
-import { WalletButton } from "@/components/wallet/WalletButton";
+import dynamic from "next/dynamic";
+
+// Dynamically import Solana's Multi-Button to prevent SSR (Server-Side Rendering) issues on Vercel deployment
+const WalletMultiButtonDynamic = dynamic(
+  async () =>
+    (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+  { ssr: false },
+);
 
 export const Header: FC = () => {
   return (
@@ -20,8 +26,10 @@ export const Header: FC = () => {
         <h1 style={{ color: "#fff", margin: 0 }}>GoalPulse</h1>
       </div>
 
-      {/* Insert the Phantom Wallet connection button here */}
-      <WalletButton />
+      {/* Official Phantom / Solana Wallet Connection Button */}
+      <div className="wallet-wrapper">
+        <WalletMultiButtonDynamic />
+      </div>
     </header>
   );
 };

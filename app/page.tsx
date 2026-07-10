@@ -1,22 +1,29 @@
 "use client";
 
-import React from "react";
+import { FC } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+
+// Dynamically import the Solana Wallet Button to prevent hydration/SSR mismatch errors
+const WalletMultiButtonDynamic = dynamic(
+  async () =>
+    (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+  { ssr: false },
+);
 
 export default function HomePage() {
   return (
-    <main className="container mx-auto px-6 bg-[#0a0f1d] min-h-screen text-slate-100 flex flex-col justify-between">
-      {/* Top Navbar Layer containing the Solana Wallet Connector */}
-      <header className="flex justify-between items-center py-6 border-b border-slate-900">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
-            ⚽ GOALPULSE
-          </span>
+    <main className="container mx-auto">
+      <header className="flex justify-between items-center py-6 px-4">
+        <div className="logo">
+          <h2 className="text-xl font-bold text-white tracking-wider font-mono">
+            GOAL<span className="text-emerald-500">PULSE</span>
+          </h2>
         </div>
+
         <div>
           {/* Solana Wallet Adapter MultiButton stylized for Cyberpunk aesthetic */}
-          <WalletMultiButton className="!bg-emerald-500 !text-slate-950 !font-mono !font-bold !px-5 !py-2 !rounded-lg !text-xs !tracking-wider !transition-all hover:!bg-emerald-400 hover:!shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
+          <WalletMultiButtonDynamic className="!bg-emerald-500 !text-slate-950 !font-mono !font-bold !px-5 !py-2 !rounded-lg !text-xs !tracking-wider !transition-all hover:!bg-emerald-400 hover:!shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
         </div>
       </header>
 

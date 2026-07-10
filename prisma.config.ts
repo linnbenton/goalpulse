@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Fallback string provided to resolve strict 'string | undefined' type assignment checking
+    url: process.env["DATABASE_URL"] || "",
   },
 });

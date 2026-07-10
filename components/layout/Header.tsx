@@ -16,7 +16,7 @@ export default function Header() {
             fontWeight: 700,
           }}
         >
-          GoalPulse Dashboard
+          Matches
         </h2>
 
         <p

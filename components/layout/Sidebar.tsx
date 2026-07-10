@@ -1,21 +1,22 @@
 import Link from "next/link";
 
+// Array structure defining sidebar navigation items with their respective routes
 const menus = [
   {
     name: "Dashboard",
-    href: "/dashboard",
+    href: "/", // Main landing page path
   },
   {
     name: "Matches",
-    href: "#",
+    href: "/dashboard", // Activated route to show the main match tracking environment
   },
   {
     name: "Signals",
-    href: "#",
+    href: "/signals", // Activated route to navigate to the Intelligence Signals page
   },
   {
     name: "Analysis",
-    href: "#",
+    href: "/analysis", // Activated route for analysis dashboard
   },
 ];
 
@@ -38,6 +39,7 @@ export default function Sidebar() {
         GoalPulse
       </h1>
 
+      {/* Dynamic menu rendering using Next.js Link client-side navigation */}
       {menus.map((menu) => (
         <Link
           key={menu.name}
@@ -46,7 +48,9 @@ export default function Sidebar() {
             display: "block",
             marginBottom: 16,
             color: "#d1d5db",
+            textDecoration: "none",
           }}
+          className="hover:text-emerald-400 transition-colors duration-200"
         >
           {menu.name}
         </Link>

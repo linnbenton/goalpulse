@@ -1,23 +1,82 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import axios from "axios";
+import BN from "bn.js";
+
 import {
-  useWallet,
   useAnchorWallet,
   useConnection,
+  useWallet,
 } from "@solana/wallet-adapter-react";
+
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-// 🎯 FIXED: Brought back BN strictly for transaction argument layout serialization
-import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
+
+import { PublicKey } from "@solana/web3.js";
+
+import { createReadonlyProgram } from "@/lib/anchor";
+
+import { subscribe } from "@/lib/txline/onchain";
+import { activateApiToken } from "@/lib/txline/activate";
+import { txlineAuth } from "@/lib/txline/auth";
+
+import { buildValidationPayload, buildBinaryStrategy } from "@/lib/validation";
+
+import {
+  deriveDailyScoresPda,
+  getEpochDay,
+  computeBudgetInstruction,
+} from "@/lib/txline";
 
 interface MatchState {
   id: string;
+
+  fixtureId: number;
+
+  seq: number;
+
   homeFlag: string;
+
   awayFlag: string;
+
   homeTeam: string;
+
   awayTeam: string;
+
   recommendation: string;
+
   confidence: number;
+}
+
+// 🎯 TxLINE Official Devnet Constants
+const TXLINE_PROGRAM_ID = new PublicKey(
+  "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J",
+);
+
+// Official Helper: Derive Epoch Day from timestamp for Proof Validation
+// Based on TxLINE Specification: epochDay = floor(timestamp / 86400000)
+function epochDayFromProofTimestamp(proofTimestampMs: number): number {
+  if (!Number.isSafeInteger(proofTimestampMs) || proofTimestampMs < 0) {
+    throw new Error("Expected a non-negative proof timestamp in milliseconds");
+  }
+  const epochDay = Math.floor(proofTimestampMs / 86400000);
+  if (epochDay > 0xffff) {
+    throw new Error("Proof timestamp is outside the u16 epoch-day range");
+  }
+  return epochDay;
+}
+
+// Official Helper: Derive validation PDA required by validateStat method
+function deriveDailyValidationPda(
+  seed: "daily_scores_roots" | "daily_batch_roots",
+  proofTimestampMs: number,
+): PublicKey {
+  const epochDay = epochDayFromProofTimestamp(proofTimestampMs);
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from(seed), new BN(epochDay).toArrayLike(Buffer, "le", 2)],
+    TXLINE_PROGRAM_ID,
+  )[0];
 }
 
 export default function AIReasoning() {
@@ -26,171 +85,195 @@ export default function AIReasoning() {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
 
+  const wallet = useWallet();
+
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [txError, setTxError] = useState<string | null>(null);
+
+  const [txResult, setTxResult] = useState<boolean | null>(null);
 
   const [currentMatch, setCurrentMatch] = useState<MatchState>({
     id: "match-worldcup-2026",
+    fixtureId: 18175981, // contoh fixture dari dokumentasi TxLINE
+    seq: 991, // contoh seq dari dokumentasi TxLINE
+
     homeFlag: "🇦🇷",
     awayFlag: "🇧🇷",
+
     homeTeam: "Argentina",
     awayTeam: "Brazil",
+
     recommendation: "BUY",
     confidence: 91,
   });
 
   useEffect(() => {
-    async function fetchLiveFeed() {
+    const fetchLiveFeed = async () => {
       try {
-        const res = await fetch("/api/matches");
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setCurrentMatch({
-              id: data[0].id || "match-worldcup-2026",
-              homeFlag: data[0].homeFlag || "🏳️",
-              awayFlag: data[0].awayFlag || "🏳️",
-              homeTeam: data[0].homeTeam || "TBD",
-              awayTeam: data[0].awayTeam || "TBD",
-              recommendation: data[0].recommendation || "BUY",
-              confidence: data[0].confidence || 91,
-            });
-          }
-        }
-      } catch (err) {
-        console.error(
-          "[Data Sync] Error fetching dynamic tournament state:",
-          err,
-        );
+        const res = await fetch("/api/txline/matches");
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        const match = data[0];
+
+        setCurrentMatch({
+          id: match.id ?? "match-worldcup-2026",
+
+          fixtureId: match.fixtureId ?? match.fixture_id ?? 18175981,
+
+          seq: match.seq ?? 991,
+
+          homeFlag: match.homeFlag ?? "🏳️",
+
+          awayFlag: match.awayFlag ?? "🏳️",
+
+          homeTeam: match.homeTeam ?? match.participant1 ?? "Home",
+
+          awayTeam: match.awayTeam ?? match.participant2 ?? "Away",
+
+          recommendation: match.recommendation ?? "BUY",
+
+          confidence: match.confidence ?? 91,
+        });
+      } catch (error) {
+        console.error("[TxLINE] Failed to fetch matches:", error);
       }
-    }
+    };
+
     fetchLiveFeed();
   }, []);
 
-  const handleExecuteBuy = async () => {
-    let tx: string;
-    setTxSignature(null);
-    setIsSubmitting(true);
+  useEffect(() => {
+    const es = new EventSource("/api/txline/stream");
 
-    if (connected && anchorWallet) {
+    es.onmessage = (event) => {
       try {
-        console.log(`[Web3 Sync] Connected via: ${publicKey?.toBase58()}`);
+        const data = JSON.parse(event.data);
 
-        const txlineProgramId = new web3.PublicKey(
-          "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J",
-        );
+        if (Array.isArray(data) && data.length > 0) {
+          const match = data[0];
 
-        // 🎯 1. GENERATE ANCHOR DISCRIMINATOR USING CRYPTO
-        const crypto = require("crypto");
+          setCurrentMatch((prev) => ({
+            ...prev,
 
-        // Try standard snake_case first. If it still fails, change this string to "global:takePosition"
-        const hashInput = "global:takePosition";
+            fixtureId: match.fixtureId ?? prev.fixtureId,
 
-        const fileHash = crypto.createHash("sha256").update(hashInput).digest();
-        const instructionDiscriminator = fileHash.subarray(0, 8);
+            homeTeam: match.participant1 ?? prev.homeTeam,
 
-        console.log(
-          `[Web3 Layout] Native Discriminator (Hex): ${instructionDiscriminator.toString("hex")}`,
-        );
-
-        // 🎯 2. SERIALIZE ARGUMENTS TO RAW BUFFER PAYLOAD
-        const matchIdBytes = Buffer.from(currentMatch.id, "utf8");
-        const matchIdLengthBuffer = Buffer.alloc(4);
-        matchIdLengthBuffer.writeUInt32LE(matchIdBytes.length, 0);
-
-        // Confidence: 8 bytes for u64 layout representation (Little Endian)
-        const confidenceBuffer = Buffer.alloc(8);
-
-        // Write lower 32-bits
-        confidenceBuffer.writeUInt32LE(currentMatch.confidence, 0);
-        // Write upper 32-bits as 0 since confidence is always < 100
-        confidenceBuffer.writeUInt32LE(0, 4);
-
-        // Concatenate payload elements
-        const dataPayload = Buffer.concat([
-          instructionDiscriminator,
-          matchIdLengthBuffer,
-          matchIdBytes,
-          confidenceBuffer,
-        ]);
-
-        // 🎯 3. CONSTRUCT NATIVE WEB3 TRANSACTION INSTRUCTION
-        const transaction = new web3.Transaction();
-        transaction.add(
-          new web3.TransactionInstruction({
-            keys: [
-              {
-                pubkey: anchorWallet.publicKey,
-                isSigner: true,
-                isWritable: true,
-              },
-              {
-                pubkey: web3.SystemProgram.programId,
-                isSigner: false,
-                isWritable: false,
-              },
-            ],
-            programId: txlineProgramId,
-            data: dataPayload,
-          }),
-        );
-
-        console.log("Preparing transaction instruction parameters...");
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = anchorWallet.publicKey;
-
-        const signedTx = await anchorWallet.signTransaction(transaction);
-        const rawTransaction = signedTx.serialize();
-
-        tx = await connection.sendRawTransaction(rawTransaction, {
-          skipPreflight: false,
-        });
-
-        console.log(
-          `[Solana Sync] Transaction successfully broadcasted: ${tx}`,
-        );
-        setTxSignature(tx);
-      } catch (error: any) {
-        console.error(
-          "[Web3 Error] Pipeline processing sequence critically aborted:",
-          error,
-        );
-        if (error.logs) {
-          console.error("[Solana Program Logs]:", error.logs);
+            awayTeam: match.participant2 ?? prev.awayTeam,
+          }));
         }
-        setIsSubmitting(false);
-        return;
-      }
-    } else {
-      console.log(
-        "[Web3 Link] Wallet not connected. Activating fallback sandbox pipeline for evaluation...",
-      );
-      tx = "3MOCK_SOLANA_TX_ID_HACKATHON_WINNER_GAp76zXb8Y9RqyWvMcdvEs11111111";
-      setTxSignature(tx);
-    }
+      } catch {}
+    };
+
+    return () => es.close();
+  }, []);
+
+  const handleExecuteBuy = async () => {
+    if (!anchorWallet) return;
 
     try {
-      await fetch("/api/matches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          txid: tx,
-          matchId: currentMatch.id,
-          status: currentMatch.recommendation,
-        }),
+      setIsSubmitting(true);
+
+      setTxError("");
+
+      const program = createReadonlyProgram(anchorWallet as any);
+
+      const txSig = await subscribe(program, anchorWallet as any);
+
+      const auth = await txlineAuth.ensureAuthenticated();
+
+      const apiToken = await activateApiToken(wallet, auth.jwt, txSig, []);
+
+      txlineAuth.setApiToken(apiToken);
+
+      console.log("API TOKEN:", apiToken);
+
+      const response = await axios.get("/api/txline/validate", {
+        params: {
+          fixtureId: currentMatch.fixtureId,
+          seq: currentMatch.seq,
+          statKeys: "1,2,3001",
+        },
+        headers: {
+          Authorization: `Bearer ${auth.jwt}`,
+          "x-api-token": apiToken,
+        },
       });
-      console.log(
-        "[Database Sync] Match transaction successfully synchronized with PostgreSQL.",
+
+      const validation = response.data;
+
+      const payload = buildValidationPayload(validation);
+
+      const strategy = buildBinaryStrategy(
+        0,
+
+        1,
+
+        0,
+
+        "equalTo",
+
+        "subtract",
       );
-    } catch (apiError) {
-      console.error(
-        "[API Error] Failed to submit callback metrics to backend route:",
-        apiError,
+
+      const epochDay = getEpochDay(validation.summary.updateStats.minTimestamp);
+
+      const [dailyScoresPda] = deriveDailyScoresPda(
+        epochDay,
+
+        program.programId,
       );
-    } finally {
-      setIsSubmitting(false);
+
+      console.log("========== VALIDATE ==========");
+      console.log("payload", payload);
+      console.log("strategy", strategy);
+      console.log("dailyScoresPda", dailyScoresPda.toBase58());
+      console.log("programId", program.programId.toBase58());
+
+      console.log("Program:", program.programId.toBase58());
+      console.log("Epoch Day:", epochDay);
+      console.log("Daily PDA:", dailyScoresPda.toBase58());
+      console.log("Timestamp:", validation.summary.updateStats.minTimestamp);
+
+      const result = await program.methods
+
+        .validateStatV2(
+          payload,
+
+          strategy,
+        )
+
+        .accounts({
+          dailyScoresMerkleRoots: dailyScoresPda,
+        })
+
+        .preInstructions([computeBudgetInstruction()])
+
+        .view();
+
+      setTxResult(result);
+    } catch (err: any) {
+      console.log("========== VALIDATE ERROR ==========");
+      console.dir(err, { depth: null });
+
+      console.log("message:", err.message);
+      console.log("logs:", err.logs);
+
+      if (err.simulationResponse) {
+        console.log("simulationResponse:", err.simulationResponse);
+      }
+
+      if (err.errorLogs) {
+        console.log("errorLogs:", err.errorLogs);
+      }
+
+      setTxError(err.message ?? "Validation failed");
     }
   };
 
@@ -232,11 +315,9 @@ export default function AIReasoning() {
         <button
           onClick={handleExecuteBuy}
           disabled={isSubmitting}
-          className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-zinc-700 text-black font-bold py-3 px-4 rounded-md transition-all duration-200 shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-[0_0_25px_rgba(34,197,94,0.7)] active:scale-95 text-xs uppercase tracking-wider disabled:pointer-events-none"
+          className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 text-white font-bold rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
         >
-          {connected
-            ? `EXECUTE ${currentMatch.recommendation} SIGNAL`
-            : "CONNECT WALLET TO EXECUTE"}
+          {isSubmitting ? "VALIDATING WITH TXLINE..." : "EXECUTE SIGNAL"}
         </button>
         <button className="border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 text-white font-medium py-3 px-4 rounded-md transition-all duration-200 active:scale-95 text-xs uppercase tracking-wider">
           PASS
@@ -245,7 +326,31 @@ export default function AIReasoning() {
 
       {isSubmitting && (
         <div className="mt-4 text-xs text-yellow-500 animate-pulse font-mono bg-zinc-900/50 p-2.5 rounded border border-yellow-500/20">
-          ⏳ Broadcasting transaction to Solana network cluster...
+          ⏳ Interacting with TxLINE Program (
+          {TXLINE_PROGRAM_ID.toBase58().slice(0, 6)}...)...
+        </div>
+      )}
+
+      {txError && (
+        <div className="mt-4 text-xs font-mono bg-red-950/40 p-3 rounded border border-red-500/30 text-red-400 truncate">
+          ❌ Error: {txError}
+        </div>
+      )}
+
+      {txResult !== null && (
+        <div
+          className="
+      mt-4
+      p-3
+      rounded
+      border
+      text-xs
+      font-mono
+    "
+        >
+          {txResult
+            ? "✅ TxLINE Validation Passed"
+            : "❌ TxLINE Validation Failed"}
         </div>
       )}
 
@@ -256,20 +361,16 @@ export default function AIReasoning() {
           </div>
           <div className="text-zinc-400 truncate mb-2">ID: {txSignature}</div>
 
-          {txSignature.startsWith("3MOCK") ? (
-            <span className="text-zinc-500 italic">
-              [Sandbox Evaluation Environment Mode]
-            </span>
-          ) : (
+          <div className="mt-2 pt-1 border-t border-zinc-800/60 text-center animate-fade-in">
             <a
               href={`https://solscan.io/tx/${txSignature}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-green-400 underline hover:text-green-300 font-semibold tracking-wide transition-colors"
+              className="text-xs text-green-400 hover:text-green-300 font-medium underline transition-all duration-200 inline-flex items-center gap-1 tracking-wider"
             >
-              Verify on Solscan Explorer 🔗
+              Verify on Solscan Explorer ↗
             </a>
-          )}
+          </div>
         </div>
       )}
     </div>

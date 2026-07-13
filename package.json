@@ -14,7 +14,7 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "@solana/spl-token": "^0.4.14",
+    "@solana/spl-token": "^0.4.15",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.29",
     "@solana/wallet-adapter-react": "^0.15.39",
@@ -22,6 +22,7 @@
     "@solana/wallet-adapter-wallets": "^0.19.38",
     "@solana/web3.js": "^1.98.4",
     "axios": "^1.18.1",
+    "bn.js": "^5.2.5",
     "bs58": "^6.0.0",
     "clsx": "^2.1.1",
     "lightweight-charts": "^5.0.8",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bn.js": "^5.2.0",
     "@types/node": "^24",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
@@ -44,6 +46,7 @@
     "eslint-config-next": "^16.2.10",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.0",
     "typescript": "^5"
   }
 }

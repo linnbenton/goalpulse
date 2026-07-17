@@ -1,111 +1,202 @@
-# ⚽ GoalPulse Dashboard — Real-Time Football Intelligence
+# ⚽ GoalPulse
 
-GoalPulse is a high-performance, real-time sports intelligence platform built for the **Superteam Earn: TxLINE Hackathon 2026**.
+GoalPulse is a real-time football intelligence dashboard built for the **Superteam × TxLINE Hackathon 2026**.
 
-Powered by **TxLINE's cryptographically verifiable sports data layer on Solana**, GoalPulse tracks, filters, and analyzes live FIFA World Cup match data to generate autonomous, high-confidence trading signals for decentralized applications.
-
-Featuring a sleek **Cyberpunk-inspired UI** with neon aesthetics, GoalPulse bridges high-speed sports data ingestion with actionable AI-powered insights.
+The project demonstrates how developers can integrate the **TxLINE** sports data platform with the **Solana** ecosystem. It combines live football data, server-side API routing, wallet authentication, subscription activation, and on-chain proof validation using the official TxLINE program.
 
 ---
 
-# 🚀 Features
+# Overview
 
-### ⚡ Real-Time Match Intelligence
+GoalPulse provides a simple end-to-end example of the TxLINE developer workflow:
 
-- Stream live FIFA World Cup match data from TxLINE.
-- Monitor scores, match minutes, game status, and key events.
-- Receive updates with minimal latency.
+1. Fetch live football matches.
+2. Authenticate with TxLINE.
+3. Activate API access.
+4. Retrieve cryptographic validation payloads.
+5. Build validation strategies.
+6. Verify sports data against the on-chain TxLINE program.
 
-### 🤖 AI Recommendation Agent
-
-The built-in **Sharp Movement Detector** continuously analyzes:
-
-- Live odds movement
-- Ball possession changes
-- Match incidents (red cards, penalties, injuries)
-- Match momentum
-
-Every 60 seconds, the agent produces a recommendation:
-
-- 🟢 BUY
-- 🟡 WATCH
-- 🔴 SELL
-
-### 📊 Live Odds Monitoring
-
-Visualize consensus market odds:
-
-- Home Win
-- Draw
-- Away Win
-
-Data is sourced directly from the TxLINE ecosystem.
-
-### 📜 Deterministic Signal Log
-
-Every generated signal includes:
-
-- Timestamp
-- Confidence score
-- Recommendation
-- Supporting market indicators
-
-ensuring complete transparency and auditability.
+The application is built with **Next.js App Router**, **React**, **TypeScript**, **Anchor**, and **Solana Wallet Adapter**.
 
 ---
 
-# 🛠 Tech Stack
+# Features
 
-| Layer       | Technology           |
-| ----------- | -------------------- |
-| Framework   | Next.js (App Router) |
-| Frontend    | React                |
-| Styling     | Tailwind CSS         |
-| Theme       | Cyberpunk / Neon UI  |
-| Language    | TypeScript           |
-| Sports Data | TxLINE API           |
-| Blockchain  | Solana Devnet        |
+## ⚽ Live Match Feed
+
+- Fetch live football matches from TxLINE.
+- Display match information in real time.
+- Support live updates using Server-Sent Events (SSE).
 
 ---
 
-# 📋 Hackathon Requirements
+## 🔐 Authentication
 
-## 💡 Project Overview
-
-GoalPulse is designed for:
-
-- Sports prediction markets
-- SportsFi applications
-- Autonomous trading agents
-- Market makers
-- Web3 betting infrastructure
-
-Instead of relying on manual analysis, GoalPulse continuously evaluates live market conditions and generates machine-readable trading signals that can be consumed by users or autonomous smart contracts.
+- Guest authentication.
+- API token activation.
+- Automatic token management during the current session.
 
 ---
 
-# 🔌 TxLINE APIs Used
+## 🪙 Solana Integration
 
-| Endpoint            | Purpose                           |
-| ------------------- | --------------------------------- |
-| `/auth/guest/start` | Guest authentication              |
-| `/api/matches`      | Live & upcoming World Cup matches |
-
----
-
-# 🚀 Getting Started
-
-## Prerequisites
-
-- Node.js 20+
-- npm
-- Git
+- Solana Wallet Adapter.
+- Anchor client integration.
+- Official TxLINE Devnet Program.
+- PDA derivation utilities.
+- Transaction preparation.
 
 ---
 
-## Installation
+## ✅ On-chain Validation
 
-Clone the repository:
+GoalPulse demonstrates the complete validation flow:
+
+- Fetch validation payload from TxLINE.
+- Build validation input.
+- Construct validation strategy.
+- Derive Daily Scores PDA.
+- Execute `validate_stat_v2`.
+
+---
+
+## 📡 Backend API
+
+The application uses Next.js Route Handlers as a secure backend proxy for TxLINE services.
+
+Implemented endpoints include:
+
+| Endpoint                      | Method | Description                 |
+| ----------------------------- | ------ | --------------------------- |
+| `/api/txline/matches`         | GET    | Fetch live football matches |
+| `/api/txline/stream`          | GET    | Server-Sent Events stream   |
+| `/api/txline/validate`        | GET    | Retrieve validation payload |
+| `/api/txline/stat-validation` | GET    | Stat validation endpoint    |
+
+---
+
+# Tech Stack
+
+| Layer       | Technology            |
+| ----------- | --------------------- |
+| Framework   | Next.js 16            |
+| Frontend    | React 19              |
+| Language    | TypeScript            |
+| Styling     | Tailwind CSS          |
+| Blockchain  | Solana Devnet         |
+| SDK         | Anchor                |
+| Wallet      | Solana Wallet Adapter |
+| HTTP        | Axios                 |
+| Sports Data | TxLINE                |
+
+---
+
+# Project Structure
+
+```text
+goalpulse/
+│
+├── app/
+│   ├── api/
+│   │   └── txline/
+│   │       ├── matches/
+│   │       ├── stat-validation/
+│   │       ├── stream/
+│   │       └── validate/
+│   │
+│   ├── layout.tsx
+│   └── page.tsx
+│
+├── components/
+│   └── dashboard/
+│       └── AIReasoning.tsx
+│
+├── idl/
+│   └── txoracle.json
+│
+├── lib/
+│   ├── anchor.ts
+│   ├── proof.ts
+│   ├── strategy.ts
+│   ├── validation.ts
+│   ├── txline.ts
+│   └── txline/
+│       ├── activate.ts
+│       ├── auth.ts
+│       ├── client.ts
+│       ├── network.ts
+│       ├── onchain.ts
+│       ├── purchase.ts
+│       ├── stream.ts
+│       ├── subscribe.ts
+│       └── validation.ts
+│
+├── scripts/
+│   └── generate-idl.ts
+│
+├── types/
+│   └── txline.ts
+│
+├── package.json
+└── README.md
+```
+
+---
+
+# On-chain Validation Flow
+
+```text
+Connect Wallet
+       │
+       ▼
+Subscribe to TxLINE
+       │
+       ▼
+Guest Authentication
+       │
+       ▼
+Activate API Token
+       │
+       ▼
+Fetch Validation Payload
+       │
+       ▼
+Build Validation Strategy
+       │
+       ▼
+Derive Daily Scores PDA
+       │
+       ▼
+validate_stat_v2()
+       │
+       ▼
+Validation Result
+```
+
+---
+
+# Environment Variables
+
+Create a `.env.local` file.
+
+```env
+NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
+
+NEXT_PUBLIC_TXLINE_PROGRAM_ID=6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J
+
+NEXT_PUBLIC_TXL_MINT=
+
+TXODDS_JWT=
+
+TXODDS_API_TOKEN=
+```
+
+---
+
+# Installation
+
+Clone the repository.
 
 ```bash
 git clone https://github.com/linnbenton/goalpulse.git
@@ -113,7 +204,7 @@ git clone https://github.com/linnbenton/goalpulse.git
 cd goalpulse
 ```
 
-Install dependencies:
+Install dependencies.
 
 ```bash
 npm install
@@ -121,29 +212,15 @@ npm install
 
 ---
 
-## Environment Variables
+# Development
 
-Create a `.env.local` file in the project root.
-
-```env
-TXODDS_JWT=your_activated_jwt_token
-
-TXODDS_API_TOKEN=your_activated_api_token
-
-NEXT_PUBLIC_TXLINE_ORIGIN=https://txline-dev.txodds.com
-```
-
-> During TxLINE Devnet maintenance, the application includes a secure fallback mechanism to keep the UI functional for local development.
-
----
-
-## Run Development Server
+Run the development server.
 
 ```bash
 npm run dev
 ```
 
-Open:
+Open your browser:
 
 ```
 http://localhost:3000
@@ -151,81 +228,65 @@ http://localhost:3000
 
 ---
 
-# 🧠 Signal Engine
+# TxLINE Integration
 
-GoalPulse evaluates multiple live market factors using a deterministic scoring model.
+GoalPulse integrates with the official TxLINE developer platform through:
 
-```text
-Confidence Score =
-(Odds Movement × Market Weight)
-+ (Match Events × Incident Weight)
-+ (Possession × Momentum Weight)
-```
-
-This scoring engine generates explainable recommendations rather than opaque predictions, making it suitable for autonomous trading workflows.
-
----
-
-# 📁 Project Structure
-
-```
-goalpulse/
-│
-├── app/
-├── components/
-├── lib/
-├── public/
-├── styles/
-├── .env.local
-├── package.json
-└── README.md
-```
+- Guest authentication
+- API token activation
+- Live match endpoints
+- Validation endpoints
+- Server-Sent Events
+- Anchor IDL
+- Solana Program interaction
 
 ---
 
-# 💬 TxLINE Developer Experience
+# Solana Program
 
-## ❤️ What We Loved
-
-- Consistent normalized JSON schema
-- Fast integration workflow
-- Excellent API structure
-- Cryptographically verifiable sports data
-- Native Solana ecosystem support
-
-## ⚠ Challenges
-
-During development we occasionally encountered:
+Program ID:
 
 ```
-read ECONNRESET
+6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J
 ```
 
-on the `/auth/guest/start` endpoint during periods of heavy Devnet traffic.
+IDL:
 
-Providing an official sandbox server or mock authentication endpoint would significantly improve the local development experience.
+```
+idl/txoracle.json
+```
+
+The application currently integrates with the following program instructions:
+
+- `subscribe`
+- `validate_stat_v2`
 
 ---
 
-# 🌍 Future Roadmap
+# Development Notes
 
-- AI-powered match summaries
-- Autonomous prediction agents
-- On-chain prediction settlement
-- Wallet integration
-- Historical analytics dashboard
-- Multi-tournament support
+The repository contains helper modules for:
+
+- Anchor provider initialization
+- PDA derivation
+- Validation payload builder
+- Strategy builder
+- Proof serialization
+- TxLINE authentication
+- Subscription activation
+
+These utilities simplify interaction with the official TxLINE on-chain program.
 
 ---
 
-# 📄 License
+# License
 
 MIT License
 
 ---
 
-## Built for
+# Built For
 
-**Superteam Earn — TxLINE Hackathon 2026**
+**Superteam × TxLINE Hackathon 2026**
 
-Built with 💚 by **linnbenton**
+Built with ❤️ by **linnbenton**

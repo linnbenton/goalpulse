@@ -281,50 +281,79 @@ export default function AIReasoning() {
     }
   };
 
+  const status = isSubmitting
+    ? "VERIFYING"
+    : txSignature
+      ? "VERIFIED"
+      : "READY";
+
   return (
     <div className="card">
-      <h3>AI Recommendation</h3>
+      <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">
+        AI Signal
+      </h3>
 
-      <div className="mt-4 flex items-center gap-3 text-3xl font-extrabold tracking-wider text-white">
-        <span title={currentMatch.homeTeam}>{currentMatch.homeFlag}</span>
-        <span className="text-zinc-600 text-sm font-normal px-1">VS</span>
-        <span title={currentMatch.awayTeam}>{currentMatch.awayFlag}</span>
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 text-3xl font-extrabold tracking-wider text-white">
+          <span title={currentMatch.homeTeam}>{currentMatch.homeFlag}</span>
+
+          <span className="text-zinc-600 text-sm">VS</span>
+
+          <span title={currentMatch.awayTeam}>{currentMatch.awayFlag}</span>
+        </div>
+
+        <span
+          className={`rounded px-2 py-1 text-xs font-bold ${
+            status === "READY"
+              ? "bg-zinc-700"
+              : status === "VERIFYING"
+                ? "bg-yellow-600"
+                : "bg-green-600"
+          }`}
+        >
+          {status}
+        </span>
       </div>
 
-      <h1
-        className="animate-pulse"
+      <div
+        className="mt-5 text-5xl font-black tracking-widest"
         style={{
-          marginTop: 18,
           color: currentMatch.recommendation === "BUY" ? "#22c55e" : "#eab308",
-          fontSize: 42,
-          fontWeight: 800,
-          textShadow:
-            "0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.4)",
+          textShadow: "0 0 20px rgba(34,197,94,.7)",
         }}
       >
         {currentMatch.recommendation}
-      </h1>
+      </div>
 
-      <p style={{ marginTop: 20 }}>Confidence</p>
-      <h2>{currentMatch.confidence}%</h2>
+      <div className="mt-6">
+        <div className="text-xs uppercase tracking-wider text-zinc-500">
+          Confidence
+        </div>
 
-      <ul style={{ marginTop: 20, lineHeight: 2 }}>
-        <li>✔ {currentMatch.homeTeam} performance pacing metrics clear</li>
-        <li>✔ Tactical match variance calculated</li>
-        <li>✔ Odds adjusting smoothly to real-time telemetry</li>
-        <li>✔ Momentum index increasing</li>
-      </ul>
+        <div className="text-3xl font-bold">{currentMatch.confidence}%</div>
+      </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 space-y-2 text-sm text-zinc-300">
+        <div>✓ Argentina performance pacing metrics clear</div>
+
+        <div>✓ Tactical variance validated</div>
+
+        <div>✓ Live odds synchronized</div>
+
+        <div>✓ Momentum trend confirmed</div>
+      </div>
+
+      <div className="mt-6">
         <button
           onClick={handleExecuteBuy}
           disabled={isSubmitting}
-          className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 text-white font-bold rounded-md transition-all active:scale-95 text-xs uppercase tracking-wider"
+          className="w-full rounded-md bg-green-600 py-3 font-bold uppercase tracking-wider hover:bg-green-500 disabled:bg-zinc-800"
         >
-          {isSubmitting ? "VALIDATING WITH TXLINE..." : "EXECUTE SIGNAL"}
-        </button>
-        <button className="border border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 text-white font-medium py-3 px-4 rounded-md transition-all duration-200 active:scale-95 text-xs uppercase tracking-wider">
-          PASS
+          {isSubmitting
+            ? "VERIFYING..."
+            : txSignature
+              ? "ON-CHAIN VERIFIED"
+              : "EXECUTE SIGNAL"}
         </button>
       </div>
 

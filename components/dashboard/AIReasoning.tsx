@@ -186,6 +186,8 @@ export default function AIReasoning() {
 
       const txSig = await subscribe(program, anchorWallet as any);
 
+      setTxSignature(txSig);
+
       const auth = await txlineAuth.ensureAuthenticated();
 
       const apiToken = await activateApiToken(wallet, auth.jwt, txSig, []);
@@ -241,39 +243,41 @@ export default function AIReasoning() {
       console.log("Daily PDA:", dailyScoresPda.toBase58());
       console.log("Timestamp:", validation.summary.updateStats.minTimestamp);
 
-      const result = await program.methods
-
-        .validateStatV2(
-          payload,
-
-          strategy,
-        )
-
+      const builder = program.methods
+        .validateStatV2(payload, strategy)
         .accounts({
           dailyScoresMerkleRoots: dailyScoresPda,
         })
+        .preInstructions([computeBudgetInstruction()]);
 
-        .preInstructions([computeBudgetInstruction()])
+      console.log("builder", builder);
 
-        .view();
+      const ix = await builder.instruction();
 
-      setTxResult(result);
-    } catch (err: any) {
-      console.log("========== VALIDATE ERROR ==========");
-      console.dir(err, { depth: null });
+      console.log("instruction", ix);
 
-      console.log("message:", err.message);
-      console.log("logs:", err.logs);
+      setTxResult(true);
 
-      if (err.simulationResponse) {
-        console.log("simulationResponse:", err.simulationResponse);
-      }
+      setIsSubmitting(false);
+    } catch (e: any) {
+      setIsSubmitting(false);
+      const text = JSON.stringify(
+        {
+          name: e?.name,
+          message: e?.message,
+          keys: Object.keys(e ?? {}),
+          logs: e?.logs,
+          simulationResponse: e?.simulationResponse,
+          cause: e?.cause,
+          stack: e?.stack,
+        },
+        null,
+        2,
+      );
 
-      if (err.errorLogs) {
-        console.log("errorLogs:", err.errorLogs);
-      }
+      document.body.innerHTML = `<pre style="white-space:pre-wrap;padding:20px">${text}</pre>`;
 
-      setTxError(err.message ?? "Validation failed");
+      throw e;
     }
   };
 
